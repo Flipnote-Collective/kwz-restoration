@@ -4,7 +4,6 @@
 #include <vector>
 #include <iterator>
 #include <math.h>
-#include <chrono>
 
 #include "kwz-restoration.hpp"
 
@@ -32,11 +31,26 @@ void readFile(std::string path) {
     }
 }
 
-double findRMS(std::vector<int16_t> t_input) {
+void writeWAV(std::string t_path, std::vector<int16_t> t_input) {
+    std::ofstream output_file(t_path, std::ios::binary);
+    
+    // Generate and write WAV header
+    wav_hdr wav;
+    wav.chunk_size = (uint32_t)(t_input.size() + 36);
+    wav.subchunk_2_size = (uint32_t)(t_input.size() * 2);
+    output_file.write(reinterpret_cast<const char*>(&wav), sizeof(wav));
+
+    // Write audio data
+    output_file.write(reinterpret_cast<const char*>(&t_input[0]), t_input.size() * 2);
+
+    output_file.close();
+}
+
+double findTrackRMS(std::vector<int16_t> t_input) {
     double rms = 0.0;
 
     // Square all values and add together
-    for (int i = 0; i < (int)t_input.size(); i++) {
+    for (auto i = 0; i < (int)t_input.size(); i++) {
         rms += std::pow(t_input[i], 2);
     }
     
@@ -44,11 +58,11 @@ double findRMS(std::vector<int16_t> t_input) {
     return std::sqrt(rms / (double)t_input.size());
 }
 
-double findMean(std::vector<int16_t> t_input) {
+double findTrackMean(std::vector<int16_t> t_input) {
     double mean = 0.0;
 
     // Add all values together
-    for (int i = 0; i < (int)t_input.size(); i++) {
+    for (auto i = 0; i < (int)t_input.size(); i++) {
         mean += t_input[i];
     }
     
@@ -90,7 +104,7 @@ std::vector<int16_t> decodeTrack(int track_size, int track_offset, int step_inde
     int bit_pos = 0;
     int8_t byte = 0;
     
-    for (int buffer_pos = track_offset; buffer_pos <= (track_offset + track_size); buffer_pos++) {
+    for (auto buffer_pos = track_offset; buffer_pos <= (track_offset + track_size); buffer_pos++) {
         byte = file_buffer[buffer_pos];
         bit_pos = 0;
 
@@ -143,14 +157,12 @@ std::vector<int16_t> decodeTrack(int track_size, int track_offset, int step_inde
 }
 
 int main(int argc, char** argv) {
-    auto start_time = std::chrono::high_resolution_clock::now();
-
     // Read arguments
-    if (argc > 2) {
+    if (argc > 3) {
         std::cout << "Too many arguments passed!" << std::endl;
         exit(-1);
     }
-    else if (argc == 2) {
+    else if (argc == 2 || argc == 3) {
         readFile(argv[1]);
     }
     else {
@@ -171,7 +183,7 @@ int main(int argc, char** argv) {
         else {
             // Find the RMS value for the decoded track using every step index
             for (auto i = 0; i < 80; i++) {
-                step_index_rms[i] = findRMS(decodeTrack(bgm_size, bgm_offset, i, 0));
+                step_index_rms[i] = findTrackRMS(decodeTrack(bgm_size, bgm_offset, i, 0));
             }
 
             // Find the lowest RMS value step index
@@ -182,18 +194,21 @@ int main(int argc, char** argv) {
                 }
             }
 
-            std::cout << "Step index: " << least_rms_i << std::endl;
-
             // Find the correct initial predictor
-            result_predictor = std::round(findMean(decodeTrack(bgm_size, bgm_offset, least_rms_i, 0)) / -16);
+            result_predictor = std::round(findTrackMean(decodeTrack(bgm_size, bgm_offset, least_rms_i, 0)) / -16);
 
+            // Print Results
+            std::cout << "Step index: " << least_rms_i << std::endl;
             std::cout << "Predictor: " << result_predictor << std::endl;
+
+            if (argc == 3) {
+                std::cout << "Writing audio to WAV file." << std::endl;
+                writeWAV(argv[2], decodeTrack(bgm_size, bgm_offset, least_rms_i, result_predictor));
+            }
         }
     }
     else {
         std::cout << "File is invalid! " << std::endl;
         exit(-1);
     }
-    
-    std::cout << std::endl << "Total execution time: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start_time).count() << " microseconds." << std::endl;
 }
