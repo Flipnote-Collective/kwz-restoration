@@ -2,9 +2,22 @@
 
 In the process of Nintendo's Flipnote Hatnea to Flipnote Gallery World conversion to the Flipnote Studio 3D .kwz format, the audio was improperly encoded in to the new format. Nintendo appears to not have reset the decoder variables between conversions of files, so some files have [extremely distorted audio](https://twitter.com/AustinSudomemo/status/1220367326085832704?s=20) using the default intial decoder state. This program finds proper initial step index and predictor decoder value in order to get the best possible value
 
+Note: step index/predictor naming is from the [IMA ADPCM standard](http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf)
+
+# Compilation
+
+`g++ kwz-restoration.cpp -O3 -o kwz-restoration`
+
+# Usage
+
+`./kwz-restoration [input .kwz file path] [optional: output .wav file path]`
+
+By specifying an output .wav file path, the audio with corrected audio will be written to that file.
+
 # Restoration Process
 
- - Decode the track with the step index from 0 to 79 and with the predictor as 0 
+ - Decode the track with the step index from 0 to 79 ([clamping range](https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz-format#sound-data)) and with the predictor as 0 (default initial decoder state)
+   - The track must be converted fully for all 80 step index values because the impact of an improper step index is extremely subtle in a short period, however when the entire track is decoded the increased values are easily caught by the next step:
  
  - Calculate the RMS of the decoded track:
    - Square root(the sum of (each sample squared) divided by the number of samples)
@@ -21,13 +34,3 @@ In the process of Nintendo's Flipnote Hatnea to Flipnote Gallery World conversio
  - That is your correct predictor
 
  - Decode the track with these values
-
-# Compilation
-
-`g++ kwz-restoration.cpp -O3 -o kwz-restoration`
-
-# Usage
-
-`./kwz-restoration [input .kwz file path] [optional: output .wav file path]`
-
-By specifying an output .wav file path, the audio with corrected audio will be written to that file.
