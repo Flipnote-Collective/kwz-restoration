@@ -34,3 +34,9 @@ By specifying an output .wav file path, the audio with corrected audio will be w
  - That is your correct predictor
 
  - Decode the track with these values
+
+# Issues
+
+ - Step index range of 0-79 appears to be too big. Notes >50 appear to have a spike at the very beginning and then have the lowest overall RMS. 
+   - Possible solution: reduce range to 0-50
+     - Doesn't seem like a complete solution, need to investigate further the root cause 
