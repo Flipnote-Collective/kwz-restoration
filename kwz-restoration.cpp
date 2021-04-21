@@ -4,7 +4,6 @@
 #include <vector>
 #include <iterator>
 #include <math.h>
-#include <limits.h>
 
 #include "kwz-restoration.hpp"
 
@@ -47,16 +46,16 @@ void writeWAV(std::string t_path, std::vector<int16_t> t_input) {
     output_file.close();
 }
 
-double findTrackRMS(std::vector<int16_t> t_input) {
+double findRMS(std::vector<int16_t> input) {
     double rms = 0.0;
 
     // Square all values and add together
-    for (auto i = 0; i < (int)t_input.size(); i++) {
-        rms += std::pow(t_input[i], 2);
+    for (auto i = 0; i < (int)input.size(); i++) {
+        rms += input[i] * input[i];
     }
     
     // Get the square root of the sum of the squares divided by the size of the vector
-    return std::sqrt(rms / (double)t_input.size());
+    return std::sqrt(rms / (double)input.size());
 }
 
 int16_t clampValue(int16_t value, int min, int max) {
@@ -67,23 +66,6 @@ int16_t clampValue(int16_t value, int min, int max) {
 
 uint32_t getUint32(int pos) {
     return *reinterpret_cast<uint32_t*>(file_buffer.data() + pos);
-}
-
-void getKSNMeta() {
-    // Find sound section ("KSN" magic) offset by traversing sections using 
-    // section sizes at the end of each section header after the magic
-    int offset = 0;
-
-    while (offset < (int)file_buffer.size()) {
-        if (file_buffer[offset + 1] == 'S' && file_buffer[offset + 2] == 'N') {
-            break;
-        }
-        offset += getUint32(offset + 4) + 8;
-    }
-
-    // Get location and size of the BGM track for decoding
-    bgm_size = getUint32(offset + 0xC);
-    bgm_offset = offset + 0x24;
 }
 
 std::vector<int16_t> decodeTrack(int track_size, int track_offset, int step_index) {
@@ -151,13 +133,54 @@ std::vector<int16_t> decodeTrack(int track_size, int track_offset, int step_inde
     return output;
 }
 
-void findInitialStepIndex() {
+void getKSNMeta() {
+    // Find sound section ("KSN " magic) offset by traversing the sections of the file
+    // using the section sizes at the end of each section header
+    int offset = 0;
+
+    while (offset < (int)file_buffer.size()) {
+        if (file_buffer[offset + 1] == 'S' && file_buffer[offset + 2] == 'N') {
+            break;
+        }
+        else {
+            // Add the section size + the size of the section header itself
+            offset += getUint32(offset + 4) + 8;
+        }
+    }
+
+    // Get location and size of the BGM track for decoding
+    bgm_size = getUint32(offset + 0xC);
+    bgm_offset = offset + 0x24;
+}
+
+bool verifyFile() {
+    bool result = false;
+
+    if (file_buffer[0] == 'K') {
+        result = true;
+        getKSNMeta();
+        if (bgm_size == 0) {
+            result = false;
+            std::cout << "BGM track does not contain any audio." << std::endl;
+        }
+        else {
+            result = true;
+        }
+    }
+    else {
+        std::cout << "File is not a valid .kwz file!" << std::endl;
+    }
+
+    return result;
+}
+
+void findCorrectStepIndex() {
     double step_index_rms[41] = { 0 };
-    double least_rms_value = DBL_MAX;
+    double least_rms_value = 32768;  // Higher than highest possible RMS
 
     // Decode the BGM track using every step index from 0-40 and record the RMS of the track
     for (auto i = 0; i < 41; i++) {
-        step_index_rms[i] = findTrackRMS(decodeTrack(bgm_size, bgm_offset, i));
+        step_index_rms[i] = findRMS(decodeTrack(bgm_size, bgm_offset, i));
     }
 
     // Find the lowest RMS value recorded, which is the correct step index
@@ -167,6 +190,9 @@ void findInitialStepIndex() {
             correct_step_index = i;
         }
     }
+
+    // Print result
+    std::cout << "Correct Initial Step Index: " << correct_step_index << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -178,31 +204,15 @@ int main(int argc, char** argv) {
     else if (argc == 3 || argc == 2) {
         readFile(argv[1]);
 
-        // Quickly verify file is a valid KWZ file by checking the file header magic (KFH)
-        if (file_buffer[0] == 'K') {
-            getKSNMeta();
+        if (verifyFile()) {
+            findCorrectStepIndex();
 
-            // Verify that the BGM track exists before attempting to decode
-            if (bgm_size == 0) {
-                std::cout << "BGM track does not contain any audio." << std::endl;
+            // If the user choses, output track with correct step index to a WAV file.
+            if (argc == 3) {
+                std::cout << "Writing properly decoded BGM track to WAV file" << std::endl;
+                 
+                writeWAV(argv[2], decodeTrack(bgm_size, bgm_offset, correct_step_index));
             }
-            else {
-                // Find correct step index
-                findInitialStepIndex();
-
-                std::cout << "Initial Step Index: " << correct_step_index << std::endl;
-
-                // If the user choses, output track with correct step index to a WAV file.
-                if (argc == 3) {
-                    std::cout << "Writing properly decoded BGM track to WAV file" << std::endl;
-                    
-                    writeWAV(argv[2], decodeTrack(bgm_size, bgm_offset, correct_step_index));
-                }
-            }
-        }
-        // file_buffer[0] != K
-        else {
-            std::cout << "File is not a valid .kwz file!" << std::endl;
         }
     }
     // argc < 2
