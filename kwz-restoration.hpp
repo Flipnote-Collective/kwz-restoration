@@ -1,25 +1,11 @@
 #pragma once
 
-template <typename T>
-T clampValue(T value, T min, T max) {
-    if (value < min) value = min;
-    if (value > max) value = max;
-    return value;
-}
-
 std::vector<uint8_t> file_buffer;
 
-int ksn_offset = 0;
+int correct_step_index = 0;
 
 int bgm_size = 0;
 int bgm_offset = 0;
-
-int least_rms = 2147483647;  // INT_MAX
-int least_rms_i = 0;
-
-int step_index_rms[80] = { 0 };
-
-int result_predictor = 0;
 
 // ADPCM Tables
 const int adpcm_index_table_2_bit[4] = { -1, 2, -1, 2 };

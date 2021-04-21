@@ -6,7 +6,7 @@ Note: step index/predictor naming is from the [IMA ADPCM standard](http://www.cs
 
 # Compilation
 
-`g++ kwz-restoration.cpp -O3 -o kwz-restoration`
+`g++ kwz-restoration.cpp -Ofast -o kwz-restoration`
 
 # Usage
 
@@ -16,27 +16,18 @@ By specifying an output .wav file path, the audio with corrected audio will be w
 
 # Restoration Process
 
- - Decode the track with the step index from 0 to 79 ([clamping range](https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz-format#sound-data)) and with the predictor as 0 (default initial decoder state)
-   - The track must be converted fully for all 80 step index values because the impact of an improper step index is extremely subtle in a short period, however when the entire track is decoded the increased values are easily caught by the next step:
+ - Decode the track with the step index from 0 to 40 and with the predictor as 0
+   - The track must be converted fully for all 40 step index values because the impact of an improper step index is extremely subtle in a short period, however when the entire track is decoded the increased values are easily caught by the next step:
+   - The reasoning for the 0-40 range is that >40 trips the 4 bit detection flag too early, screwing up the ordering of bit decoding for the rest of the track.
  
  - Calculate the RMS of the decoded track:
-   - Square root(the sum of (each sample squared) divided by the number of samples)
+   - Square each sample then add together
+   - Divide by the total number of samples
+   - Take the square root of that value to get your RMS.
  
  - The step index with the lowest RMS is the correct step index
 
- - Decode the track again with the step index found above and a predictor of zero
-
- - Find the mean (average) of the track
-   - Add all samples together and divide by the number of samples
-
- - Divide the mean by -16 and round (not int floor/cieling, traditional rounding to a whole number)
-
- - That is your correct predictor
-
- - Decode the track with these values
-
 # Issues
-
- - Step index range of 0-79 appears to be too big. Notes >50 appear to have a spike at the very beginning and then have the lowest overall RMS. 
-   - Possible solution: reduce range to 0-50
-     - Doesn't seem like a complete solution, need to investigate further the root cause 
+ - Possible false positives in some notes:
+   - Where multiple step index are close to each other in value, but slightly different.
+     - Is lowest RMS still the best solution? Need to investigate further, possibly with comparison to PPM audio.
