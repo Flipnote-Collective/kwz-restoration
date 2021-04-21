@@ -2,9 +2,11 @@
 
 In the process of Nintendo's Flipnote Hatnea to Flipnote Gallery World conversion to the Flipnote Studio 3D .kwz format, the audio was improperly encoded in to the new format. Nintendo appears to not have reset the decoder variables between conversions of files, so some files have [extremely distorted audio](https://twitter.com/AustinSudomemo/status/1220367326085832704?s=20) using the default intial decoder state. This program finds proper initial step index value in order to decode best possible audio.
 
-Note: step index/predictor naming is from the [IMA ADPCM standard](http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf)
+Note: step index naming is from the [IMA ADPCM standard](http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf)
 
 # Compilation
+
+### GCC
 
 `g++ kwz-restoration.cpp -Ofast -o kwz-restoration`
 
