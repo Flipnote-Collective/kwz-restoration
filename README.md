@@ -1,8 +1,8 @@
 # kwz-restoration
 
-In the process of Nintendo's Flipnote Hatnea to Flipnote Gallery World conversion to the Flipnote Studio 3D .kwz format, the audio was improperly encoded in to the new format. Nintendo appears to not have reset the decoder variables between conversions of files, so some files have [extremely distorted audio](https://twitter.com/AustinSudomemo/status/1220367326085832704?s=20) using the default intial decoder state. This program finds proper initial step index value in order to decode best possible audio.
+In the process of Nintendo's Flipnote Hatena to Flipnote Gallery World conversion to the Flipnote Studio 3D .kwz format, the audio was improperly encoded in to the new format. Nintendo appears to not have reset the decoder variables between conversions of files, so some files have [extremely distorted audio](https://twitter.com/AustinSudomemo/status/1220367326085832704?s=20) using the default initial decoder state. This program finds proper initial step index value for all audio tracks in order to decode the best possible audio given the data in the converted .kwz files.
 
-Note: step index naming is from the [IMA ADPCM standard](http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf)
+Note: decoder variable naming is from the [IMA ADPCM standard](http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf)
 
 # Compilation
 
@@ -14,7 +14,7 @@ Note: step index naming is from the [IMA ADPCM standard](http://www.cs.columbia.
 
 `./kwz-restoration [input .kwz file path] [optional: output .wav file path]`
 
-By specifying an output .wav file path, the BGM track will be decoded with the found correct initial step index and will be written to the file path specific.
+By specifying an output .wav file path, the BGM track will be decoded with the found correct initial step index then will be written to the file path specified.
 
 # Restoration Process
 
@@ -30,7 +30,10 @@ By specifying an output .wav file path, the BGM track will be decoded with the f
  - The step index with the lowest RMS is the correct step index
    - Predictor correction is now no longer needed due to <=40 step indexes being found to correctly decode the audio.
 
+ - Repeat for all tracks in the file before mixing.
+
 # Issues
  - Are there false positives in some notes?
    - Where multiple step index are close to each other in value, but slightly different.
      - Is lowest RMS still the best solution? Need to investigate further, possibly with comparison to PPM audio if it can be found. Otherwise, will have to assume lowest is best.
+     - Upon further investigation, it seems like the lowest is still the most correct due to spikes observed with higher step index values.
