@@ -2,21 +2,9 @@
 
 std::vector<uint8_t> file_buffer;
 
-int bgm_size = 0;
-int bgm_offset = 0;
-int bgm_step_index = 0;
-
-int se_1_size = 0;
-int se_1_offset = 0;
-
-int se_2_size = 0;
-int se_2_offset = 0;
-
-int se_3_size = 0;
-int se_3_offset = 0;
-
-int se_4_size = 0;
-int se_4_offset = 0;
+int track_sizes[4] = {};
+int track_offsets[4] = {};
+int step_indexes[4] = {};
 
 // ADPCM Tables
 const int adpcm_index_table_2_bit[4] = { -1, 2, -1, 2 };

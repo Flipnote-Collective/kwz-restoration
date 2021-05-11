@@ -4,36 +4,47 @@ In the process of Nintendo's Flipnote Hatena to Flipnote Gallery World conversio
 
 Note: decoder variable naming is from the [IMA ADPCM standard](http://www.cs.columbia.edu/~hgs/audio/dvi/IMA_ADPCM.pdf)
 
+
 # Compilation
 
-### GCC
+`./make.sh`
 
-`g++ kwz-restoration.cpp -Ofast -o kwz-restoration`
+Requires GCC.
+
 
 # Usage
 
-`./kwz-restoration [input .kwz file path] [optional: output .wav file path]`
+`./kwz-restoration [input .kwz file path] [optional: output .wav file path] [optional: output track index]`
 
 By specifying an output .wav file path, the BGM track will be decoded with the found correct initial step index then will be written to the file path specified.
 
+Refer to the chart below for valid track indexes. If no index is specified, the BGM track (0) will be the output.
+
+| Track Index | Description           |
+|-------------|-----------------------|
+| 0 (Default) | BGM, background music |
+| 1           | Sound Effect 1 (A)    |
+| 2           | Sound Effect 2 (X)    |
+| 3           | Sound Effect 3 (Y)    |
+
 # Restoration Process
+
+To decode an audio track properly, follow this procedure first. After that, decode the track with the resulting initial step index.
 
  - Decode the track with the step index from 0 to 40 and with the predictor as 0
    - The track must be converted fully for all 40 step index values because the impact of an improper step index is extremely subtle in a short period, however when the entire track is decoded the increased values are easily caught by the next step:
    - The reasoning for the 0-40 range is that >40 trips the 4 bit detection flag too early, screwing up the ordering of bit decoding for the rest of the track, followed by the usual incorrect step index causing gradually higher and higher amplitude tracks.
- 
+
  - Calculate the RMS of the decoded track:
    - Square each sample then add together
    - Divide by the total number of samples
    - Take the square root of that value to get your RMS.
- 
- - The step index with the lowest RMS is the correct step index
-   - Predictor correction is now no longer needed due to <=40 step indexes being found to correctly decode the audio.
 
- - Repeat for all tracks in the file before mixing.
+ - The step index with the lowest RMS is the result
 
-# Issues
- - Are there false positives in some notes?
-   - Where multiple step index are close to each other in value, but slightly different.
-     - Is lowest RMS still the best solution? Need to investigate further, possibly with comparison to PPM audio if it can be found. Otherwise, will have to assume lowest is best.
-     - Upon further investigation, it seems like the lowest is still the most correct due to spikes observed with higher step index values.
+
+# Credits
+
+ - Everyone mentioned in [flipnote.js acknowledgments](https://flipnote.js.org/pages/docs/acknowledgements.html)
+
+ - [Sudodad](https://github.com/tychoaussie) - for early ideas to approach restoration mathematically
