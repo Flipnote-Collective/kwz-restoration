@@ -46,5 +46,3 @@ To decode an audio track properly, follow this procedure first. After that, deco
 # Credits
 
  - Everyone mentioned in [flipnote.js acknowledgments](https://flipnote.js.org/pages/docs/acknowledgements.html)
-
- - [Sudodad](https://github.com/tychoaussie) - for early ideas to approach restoration mathematically
