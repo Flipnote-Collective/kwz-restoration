@@ -7,20 +7,6 @@
 
 #include "kwz-restoration.hpp"
 
-inline uint32_t getUint16(int pos) {
-    return *reinterpret_cast<uint16_t*>(file_buffer.data() + pos);
-}
-
-inline uint32_t getUint32(int pos) {
-    return *reinterpret_cast<uint32_t*>(file_buffer.data() + pos);
-}
-
-inline int16_t clampValue(int16_t value, int min, int max) {
-    if (value < min) value = min;
-    if (value > max) value = max;
-    return value;
-}
-
 void readFile(std::string path) {
     std::ifstream file(path, std::ios::binary);
 
@@ -45,22 +31,7 @@ void readFile(std::string path) {
     }
 }
 
-void writeWAV(std::string t_path, std::vector<int16_t> t_input) {
-    std::ofstream output_file(t_path, std::ios::binary);
-
-    // Generate and write WAV header
-    wav_hdr wav;
-    wav.chunk_size = (uint32_t)(t_input.size() + 36);
-    wav.subchunk_2_size = (uint32_t)(t_input.size() * 2);
-    output_file.write(reinterpret_cast<const char*>(&wav), sizeof(wav));
-
-    // Write audio data
-    output_file.write(reinterpret_cast<const char*>(&t_input[0]), t_input.size() * 2);
-
-    output_file.close();
-}
-
-double findRMS(std::vector<int16_t> input) {
+double findRMS(std::vector<s16> input) {
     double rms = 0.0;
 
     // Square each value and add them together
@@ -72,7 +43,7 @@ double findRMS(std::vector<int16_t> input) {
     return std::sqrt(rms / (double)input.size());
 }
 
-std::vector<int16_t> decodeTrack(int track_size, int track_offset, int step_index) {
+std::vector<s16> decodeTrack(int track_size, int track_offset, int step_index) {
     // https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz-format#ksn-sound-data
 
     std::vector<int16_t> output;
@@ -138,41 +109,42 @@ std::vector<int16_t> decodeTrack(int track_size, int track_offset, int step_inde
 }
 
 bool getKSNMeta() {
-    // Find sound section ("KSN " magic) offset by traversing the sections of the file
-    // using the section sizes at the end of each section header
     int offset = 0;
-    bool ksn_found = false;
 
+    bool ksn_found = false;
+    bool ksn_valid = false;
+
+    // Find sound section ("KSN" magic) offset by traversing the sections of the file using
+    // the section sizes at the end of each section header to find the next section
     while (offset < (int)file_buffer.size()) {
         if (file_buffer[offset + 1] == 'S' && file_buffer[offset + 2] == 'N') {
             ksn_found = true;
             break;
         }
         else {
-            // Add the section size + the size of the section header itself
-            offset += getUint32(offset + 4) + 8;
+            // Add the found section size + the size of the header itself
+            offset += getInt<u32>(offset + 4) + 8;
         }
     }
 
-    // Get track sizes
-    track_sizes[0] = getUint32(offset + 0x0C);
-    track_sizes[1] = getUint32(offset + 0x10);
-    track_sizes[2] = getUint32(offset + 0x14);
-    track_sizes[3] = getUint32(offset + 0x18);
+    // Get track sizes from the KSN section meta
+    track_sizes[0] = getInt<u32>(offset + 0x0C);
+    track_sizes[1] = getInt<u32>(offset + 0x10);
+    track_sizes[2] = getInt<u32>(offset + 0x14);
+    track_sizes[3] = getInt<u32>(offset + 0x18);
 
-    // Calculate track offsets from sizes
-    track_offsets[0] = offset + 0x24;
+    // Calculate track offsets from track sizes
+    track_offsets[0] = offset           + 0x24;
     track_offsets[1] = track_offsets[0] + track_sizes[0];
     track_offsets[2] = track_offsets[1] + track_sizes[1];
     track_offsets[3] = track_offsets[2] + track_sizes[2];
 
     // Verify that the audio section spans to the end of the file
-    bool ksn_valid = false;
-
-    if (file_buffer.size() >= offset + getUint16(offset + 0x4)) {
+    if (offset + getInt<u16>(offset + 0x4) <= (int)file_buffer.size()) {
         ksn_valid = true;
     }
 
+    // Return results
     return ksn_valid && ksn_found;
 }
 
@@ -200,29 +172,60 @@ int findCorrectStepIndex(int track_size, int track_offset) {
     return result;
 }
 
-int main(int argc, char** argv) {
-    if (argc > 4 && argc < 1) {
-        std::cout << "Invalid number of arguments passed!" << std::endl;
+void writeTrack(int index, std::string file_name) {
+    // Verify track index is in the valid range
+    if (index <= 3 || index >= 0) {
+        if (track_sizes[index] != 0) {
+            std::cout << "Writing properly decoded BGM track to WAV file" << std::endl;
+
+            std::vector<s16> track_buffer = decodeTrack(track_sizes[index],
+                                                        track_offsets[index],
+                                                        findCorrectStepIndex(track_sizes[index], track_offsets[index]));
+
+            // Open output file
+            std::ofstream output_file(file_name, std::ios::binary);
+
+            // Generate and write WAV header
+            wav_hdr wav;
+            wav.chunk_size = (uint32_t)(track_buffer.size() + 36);
+            wav.subchunk_2_size = (uint32_t)(track_buffer.size() * 2);
+            output_file.write(reinterpret_cast<const char*>(&wav), sizeof(wav));
+
+            // Write track data
+            output_file.write(reinterpret_cast<const char*>(&track_buffer[0]), track_buffer.size() * 2);
+
+            // Close output file
+            output_file.close();
+        }
+        else {
+            std::cout << "The requested track index does not contain audio!" << std::endl;
+        }
     }
     else {
-        // Read file into file_buffer
+        std::cout << "Track index is not in the valid range! See README.md" << std::endl;
+    }
+}
+
+int main(int argc, char** argv) {
+    if (argc < 4 && argc > 1) {
+        // Read file contents
         readFile(argv[1]);
 
         // Check for file header section magic
         if (file_buffer[0] == 'K') {
-            // Only get step indexes if the file is valid
             if (getKSNMeta()) {
-                // Print all step indexes
                 std::cout << "Proper initial step indexes (-1 means no audio in the track): " << std::endl;
 
+                // Find and print all correct step indexes
                 std::cout << "BGM: " << findCorrectStepIndex(track_sizes[0], track_offsets[0]) << std::endl;
                 std::cout << "SE1: " << findCorrectStepIndex(track_sizes[1], track_offsets[1]) << std::endl;
                 std::cout << "SE2: " << findCorrectStepIndex(track_sizes[2], track_offsets[2]) << std::endl;
                 std::cout << "SE3: " << findCorrectStepIndex(track_sizes[3], track_offsets[3]) << std::endl;
+                // SE4 is not processed because PPM converted notes don't have a 4th sound effect.
 
                 // Write WAV if option passed
                 if (argc == 3 || argc == 4) {
-                    // Default to BGM if no track index specified
+                    // Default to BGM track (0)
                     int index = 0;
 
                     // Set track index if specified
@@ -230,31 +233,20 @@ int main(int argc, char** argv) {
                         index = std::stoi(argv[3]);
                     }
 
-                    // Verify index is in the valid range
-                    if (index > 3 || index < -1) {
-                        std::cout << "Track index is not in the valid range! See README.md" << std::endl;
-                    }
-                    else {
-                        if (track_sizes[index] != 0) {
-                            std::cout << "Writing properly decoded BGM track to WAV file" << std::endl;
-
-                            int step_index = findCorrectStepIndex(track_sizes[index], track_offsets[index]);
-
-                            writeWAV(argv[2], decodeTrack(track_sizes[index], track_offsets[index], step_index));
-                        }
-                        else {
-                            std::cout << "The requested track index does not contain audio!" << std::endl;
-                        }
-                    }
+                    writeTrack(index, std::string(argv[2]));
                 }
             }
             else {
-                std::cout << "File contents are corrupt or incomplete." << std::endl;
+                std::cout << "File is not a valid .kwz file!" << std::endl;
+                std::cout << (int)file_buffer[0] << std::endl;
             }
         }
         else {
             // No KFH section magic means the file isn't valid.
-            std::cout << "File is not a valid .kwz or .kwz.gz file!" << std::endl;
+            std::cout << "File is not a valid .kwz file!" << std::endl;
         }
+    }
+    else {
+        std::cout << "Invalid number of arguments passed!" << std::endl;
     }
 }

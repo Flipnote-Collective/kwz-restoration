@@ -1,9 +1,8 @@
-# VS Code directory
 .vscode/
+samples/
+output/
 
-# Compiled binary
 kwz-restoration
 
-# Testing files
 *.kwz
 *.wav
