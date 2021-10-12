@@ -7,7 +7,7 @@ typedef uint32_t u32;
 
 std::vector<u8> file_buffer;
 
-template <typename X, typename Y, typename Z>
+template<typename X, typename Y, typename Z>
 X clampValue(X value, Y min, Z max) {
     if (value < min) value = (X)min;
     if (value > max) value = (X)max;
@@ -24,12 +24,12 @@ int track_offsets[4] = {};
 int step_indexes[4] = {};
 
 // ADPCM Tables
-const int adpcm_index_table_2_bit[4] = { -1, 2, -1, 2 };
+const int ADPCM_INDEX_TABLE_2[4] = { -1, 2, -1, 2 };
 
-const int adpcm_index_table_4_bit[16] = { -1, -1, -1, -1, 2, 4, 6, 8,
+const int ADPCM_INDEX_TABLE_4[16] = { -1, -1, -1, -1, 2, 4, 6, 8,
                                           -1, -1, -1, -1, 2, 4, 6, 8 };
 
-const s16 adpcm_step_table[89] = {     7,     8,     9,    10,    11,    12,
+const s16 ADPCM_STEP_TABLE[89] = {     7,     8,     9,    10,    11,    12,
                                       13,    14,    16,    17,    19,    21,
                                       23,    25,    28,    31,    34,    37,
                                       41,    45,    50,    55,    60,    66,

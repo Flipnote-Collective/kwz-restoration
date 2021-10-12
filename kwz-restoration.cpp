@@ -43,18 +43,20 @@ double findRMS(std::vector<s16> input) {
     return std::sqrt(rms / (double)input.size());
 }
 
-std::vector<s16> decodeTrack(int track_size, int track_offset, int step_index) {
+std::vector<s16> decodeTrack(int track_size, int track_offset, int initial_step_index) {
     // https://github.com/Flipnote-Collective/flipnote-studio-3d-docs/wiki/kwz-format#ksn-sound-data
 
-    std::vector<int16_t> output;
+    std::vector<s16> output;
 
-    int16_t predictor = 0;
-    int16_t sample = 0;
-    int16_t step = 0;
-    int16_t diff = 0;
+    s16 step_index = (s16)initial_step_index;
+    s16 predictor = 0;
+    s16 step = 0;
+    s16 diff = 0;
 
-    auto bit_pos = 0;
-    int8_t byte = 0;
+    u8 sample = 0;
+    u8 byte = 0;
+
+    int bit_pos = 0;
 
     for (auto buffer_pos = track_offset; buffer_pos <= (track_offset + track_size); buffer_pos++) {
         byte = file_buffer[buffer_pos];
@@ -65,14 +67,14 @@ std::vector<s16> decodeTrack(int track_size, int track_offset, int step_index) {
                 // Decode 2 bit sample
                 sample = byte & 0x3;
 
-                step = adpcm_step_table[step_index];
+                step = ADPCM_STEP_TABLE[step_index];
                 diff = step >> 3;
 
                 if (sample & 1) diff += step;
                 if (sample & 2) diff = -diff;
 
                 predictor += diff;
-                step_index += adpcm_index_table_2_bit[sample];
+                step_index += ADPCM_INDEX_TABLE_2[sample];
 
                 byte >>= 2;
                 bit_pos += 2;
@@ -81,7 +83,7 @@ std::vector<s16> decodeTrack(int track_size, int track_offset, int step_index) {
                 // Decode 4 bit sample
                 sample = byte & 0xF;
 
-                step = adpcm_step_table[step_index];
+                step = ADPCM_STEP_TABLE[step_index];
                 diff = step >> 3;
 
                 if (sample & 1) diff += step >> 2;
@@ -90,7 +92,7 @@ std::vector<s16> decodeTrack(int track_size, int track_offset, int step_index) {
                 if (sample & 8) diff = -diff;
 
                 predictor += diff;
-                step_index += adpcm_index_table_4_bit[sample];
+                step_index += ADPCM_INDEX_TABLE_4[sample];
 
                 byte >>= 4;
                 bit_pos += 4;
