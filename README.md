@@ -1,4 +1,9 @@
 # kwz-restoration
+
+![GIF of bart simpson lining up megaphones causing a sound blast, with KWZ audio related text added](https://media1.tenor.com/m/2Z5rWwWHnk4AAAAd/kwz-kwz-audio.gif)
+
+*(gif credit to https://github.com/J0w03L)*
+
 This repo contains an explanation of why some Flipnote Studio 3D DSi Library .kwz files have distorted audio and an example implementation of the restoration process.
 
 Notes:
